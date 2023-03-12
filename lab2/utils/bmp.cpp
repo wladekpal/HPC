@@ -11,11 +11,19 @@
 #include <iostream>
 #include <fstream>
 #include <omp.h>
+#include <chrono>
 
 #define COLORS_COUNT 3 // red, green, blue
 
 typedef void (CompressFun)(const std::vector<uint8_t>&, std::vector<float>&, std::vector<float>&);
 typedef void (DecompressFun)(std::vector<uint8_t>&, const std::vector<float>&, const std::vector<float>&);
+
+std::chrono::high_resolution_clock::time_point timeNow() {
+  return std::chrono::high_resolution_clock::now();
+}
+
+typedef std::chrono::milliseconds millis;
+typedef std::chrono::microseconds micro;
 
 #pragma pack(push, 1)
 struct BMPHeader {
@@ -108,7 +116,7 @@ struct BMP {
       float sizeRatio = accuracy * 2.0 / header.width;
       float typeRatio = sizeof(float) / (float) sizeof(uint8_t);
       fprintf(stderr, "Compression ratio %.2f\n", sizeRatio * typeRatio);
-      float totalTime = 0;
+      micro totalTime{0};
 
       for (int colorIndex=0; colorIndex<COLORS_COUNT; colorIndex++) {
           Xreal[colorIndex].clear();
@@ -118,30 +126,30 @@ struct BMP {
             Xreal[colorIndex].push_back(std::vector<float>(accuracy, 0));
             Ximag[colorIndex].push_back(std::vector<float>(accuracy, 0));
 
-            float startTime = omp_get_wtime();
+            auto startTime = timeNow();
             fun(RGB[colorIndex][j], Xreal[colorIndex][j], Ximag[colorIndex][j]);
-            totalTime += omp_get_wtime() - startTime;
+            totalTime += std::chrono::duration_cast<micro>(timeNow() - startTime);
 
             RGB[colorIndex][j].clear();
           }
       }
 
-      return totalTime;
+      return std::chrono::duration_cast<millis>(totalTime).count() / 1000.0;
   }
 
   float decompress(DecompressFun *fun) {
-      float totalTime = 0;
+      micro totalTime{0};
 
       for (int colorIndex=0; colorIndex<COLORS_COUNT; colorIndex++) {
           for (int j=0; j<header.height; j++) {
             RGB[colorIndex][j].resize(header.width);
 
-            float startTime = omp_get_wtime();
+            auto startTime = timeNow();
             fun(RGB[colorIndex][j], Xreal[colorIndex][j], Ximag[colorIndex][j]);
-            totalTime += omp_get_wtime() - startTime;
+          totalTime += std::chrono::duration_cast<micro>(timeNow() - startTime);
           }
       }
 
-      return totalTime;
+      return std::chrono::duration_cast<millis>(totalTime).count() / 1000.0;
   }
 };
