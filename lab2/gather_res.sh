@@ -6,7 +6,9 @@ for ACC in 8 16 32
 do
     for THREADS in 2 4 8 16 32 64
     do
+        echo "THREADS:"$THREADS
         export OMP_NUM_THREADS=$THREADS
         ./dft $ACC $THREADS
     done
+    echo ""
 done

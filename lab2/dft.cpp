@@ -9,6 +9,9 @@
 #include <omp.h>
 #include <fstream>
 
+#include <chrono>
+#include <thread>
+
 #include "utils/bmp.cpp"
 
 
@@ -88,79 +91,43 @@ void decompresPar(std::vector<uint8_t> &values, const std::vector<float> &Xreal,
   float coss[valuesCount][accuracy];
   float sins[valuesCount][accuracy];
 
-  //tutaj liczymy cos i sin dla i = 0
-  // #pragma omp parallel for collapse(2)
-  // for (int i = 0; i < valuesCount; i++) { // Tej nie paralelizować
-  //     for (int k = 0; k < accuracy; k++) { //tutaj zrobić z nowait, że master liczy swoje wartości a wątki liczą kolejne cos i sin nie czekając na mastera
-  //         float theta = (2 * M_PI * k * i) / valuesCount;
-  //         coss[i][k] = cos(theta);
-  //         sins[i][k] = sin(theta);
-  //     }
-  // }
-
-  // for (int i = 0; i < valuesCount; i++) {
-  //   float total = 0;
-  //   for (int k = 0; k < accuracy; k++) {
-  //     total += (Xreal[k] * coss[i][k] + Ximag[k] * sins[i][k]);
-  //   }
-
-  //   values[i] = total / valuesCount;
-  // }
-
   int threadId;
-  float total;
+
+  std::vector<float> rawValues(valuesCount, 0);
+
 
   #pragma omp parallel for
   for (int k = 0; k < accuracy; k++) {
-    // float theta = (2 * M_PI * k * i) / valuesCount;
     coss[0][k] = 1;
     sins[0][k] = 0;
   }
 
-  // for (int i = 0; i < valuesCount; i++) { // Tej nie paralelizować
-  //   total = 0;
-  //   #pragma omp parallel for private(threadId)
-  //   for (int k = 0; k < accuracy; k++) { //tutaj zrobić z nowait, że master liczy swoje wartości a wątki liczą kolejne cos i sin nie czekając na mastera
-  //     threadId = omp_get_thread_num();
-  //     if (threadId == 0) {
-  //       total += (Xreal[k] * coss[i][k] + Ximag[k] * sins[i][k]);
-  //       // std::cout << total << " " << Xreal[k] << " " << coss[i][k] << " " << Ximag[k] << " " << sins[i][k] << std::endl;
-  //     }
-  //     else if (k != accuracy - 1) {
-  //       float theta = (2 * M_PI * k * (i+1)) / valuesCount;
-  //       coss[i+1][k] = cos(theta);
-  //       sins[i+1][k] = sin(theta);
-  //     }
-  //   }
-    
-  //   values[i] = total / valuesCount;
-  // }
-  #pragma omp sections
+
+for (int i =0 ; i < valuesCount; i++) {
+  #pragma omp parallel 
   {
-    #pragma omp section
+
+    #pragma omp master
     {
-      for (int i = 0; i < valuesCount; i++) {
-        float total = 0;
+      
         for (int k = 0; k < accuracy; k++) {
-          float theta = (2 * M_PI * k * i) / valuesCount;
-          total += Xreal[k] * coss[i][k] + Ximag[k] * sins[i][k];
+          rawValues[i] += Xreal[k] * coss[i][k] + Ximag[k] * sins[i][k];
         }
-        values[i] = total / valuesCount;
-      }
     }
 
-    #pragma omp section
-    {
-      #pragma omp parallel for collapse (2)
-      for (int i = 1; i < valuesCount; i++) {
-        for (int k = 0; k < accuracy; k++) {
-          float theta = (2 * M_PI * k * i) / valuesCount;
-          sins[i][k] = sin(theta);
-          coss[i][k] = cos(theta);
-        }
-      }
+    #pragma omp for nowait
+    for (int k = 0; k < accuracy; k++) {
+      float theta = (2 * M_PI * k * (i+1)) / valuesCount;
+      sins[i+1][k] = sin(theta);
+      coss[i+1][k] = cos(theta);
     }
+
   }
+
+  for (int i = 0; i< valuesCount; i++) {
+    values[i] = rawValues[i] / valuesCount;
+  }
+}
 
 
 }
