@@ -1,0 +1,1 @@
+mpicxx -std=c++14  -g3 -Wall -O0 CMakeFiles/generator_all.dir/densematgen.cpp.o CMakeFiles/generator_all.dir/generator_all.cpp.o -o generator_all 

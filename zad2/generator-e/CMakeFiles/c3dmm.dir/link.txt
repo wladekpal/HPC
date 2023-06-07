@@ -1,0 +1,1 @@
+mpicxx -std=c++14  -g3 -Wall -O0 CMakeFiles/c3dmm.dir/c3dmm.cpp.o CMakeFiles/c3dmm.dir/multiplication.cpp.o -o c3dmm 
