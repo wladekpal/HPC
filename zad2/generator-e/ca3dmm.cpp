@@ -48,6 +48,9 @@ void process_arguments(int argc, char *argv[]) {
 
     std::vector<std::pair<int, int>> seeds;
 
+    bool print_matrix;
+    double ge_value;
+
     for (int i = 4; i < argc; i++) {
         if (std::string(argv[i]) == "-s") {
             auto seeds_string = std::string(argv[i+1]);
@@ -80,13 +83,20 @@ void process_arguments(int argc, char *argv[]) {
                 seeds.push_back(std::make_pair(std::stoi(first_str), std::stoi(second_str)));
             }
         }
+        else if (std::string(argv[i]) == "-v") {
+            print_matrix = true;
+        }
+        else if (std::string(argv[i]) == "-g") {
+            print_matrix = false;
+            ge_value = std::stod(argv[i+1]);
+        }
     }
 
 
     auto solution = solve_ps(n, m, k, 0.8);
 
     for (int i =0; i < seeds.size(); i++) {
-        multiply(n, m, k, seeds[i].first, seeds[i].second, solution);
+        multiply(n, m, k, seeds[i].first, seeds[i].second, solution, print_matrix, ge_value);
     }
 }
 
