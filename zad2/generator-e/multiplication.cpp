@@ -265,7 +265,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
         y_coord_in_group = my_id_in_group % p_m;
 
         if (c > 1)
-            x_coord_in_cannon = x_coord_in_group % c;
+            x_coord_in_cannon = x_coord_in_group % (p_n / c);
         else
             x_coord_in_cannon = x_coord_in_group;
         y_coord_in_cannon = y_coord_in_group;
@@ -303,11 +303,11 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
         B_x_real_range = B_x_gen_range;
         B_y_real_range = B_y_gen_range;
 
-        std::cout << "Proc: " << my_rank << "| k_group: " << my_k_group << "| my_id_in_k: " << my_id_in_group << "| cannon_group: " << my_cannon_group << "| my_id_in_cannon: " << my_id_in_cannon; 
-        std::cout << "| coords in cannon: (" << x_coord_in_cannon << "," << y_coord_in_cannon << ")";
-        std::cout << "| coords in group: (" << x_coord_in_group << "," << y_coord_in_group << ")";
-        std::cout << "| A range x: (" << A_x_gen_range.first << "," << A_x_gen_range.second << ") y:(" << A_y_gen_range.first << "," << A_y_gen_range.second << ") | B range x:(" << B_x_gen_range.first << "," << B_x_gen_range.second << ") y: (" << B_y_gen_range.first << "," << B_y_gen_range.second << ")";
-        std::cout << "| A_x_real_range: (" << A_x_real_range.first << "," << A_x_real_range.second << ")"<< std::endl;
+        // std::cout << "Proc: " << my_rank << "| k_group: " << my_k_group << "| my_id_in_k: " << my_id_in_group << "| cannon_group: " << my_cannon_group << "| my_id_in_cannon: " << my_id_in_cannon; 
+        // std::cout << "| coords in cannon: (" << x_coord_in_cannon << "," << y_coord_in_cannon << ")";
+        // std::cout << "| coords in group: (" << x_coord_in_group << "," << y_coord_in_group << ")";
+        // std::cout << "| A range x: (" << A_x_gen_range.first << "," << A_x_gen_range.second << ") y:(" << A_y_gen_range.first << "," << A_y_gen_range.second << ") | B range x:(" << B_x_gen_range.first << "," << B_x_gen_range.second << ") y: (" << B_y_gen_range.first << "," << B_y_gen_range.second << ")";
+        // std::cout << "| A_x_real_range: (" << A_x_real_range.first << "," << A_x_real_range.second << ")"<< std::endl;
     }
     else {
         c = p_m / p_n;
@@ -327,7 +327,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
 
     MPI_Comm cannon_comm, cannon_comm_grid;
     MPI_Comm_split(MPI_COMM_WORLD, my_k_group * c + my_cannon_group, my_id_in_cannon, &cannon_comm);
-    std::cout << my_rank << "->>>>>>" << my_k_group * c + my_cannon_group << std::endl;
+    // std::cout << my_rank << "->>>>>>" << my_k_group * c + my_cannon_group << std::endl;
     MPI_Barrier(MPI_COMM_WORLD); // TODO: wywalić
 
     int dims[2] = {x_dim_cannon_group, y_dim_cannon_group};
@@ -340,7 +340,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     MPI_Cart_coords(cannon_comm_grid, my_id_in_cannon, 2, coords);
 
     //std::cout << "Proc " << my_rank << "| id_in_cannon: " << my_id_in_cannon << "| coords: " << coords[0] << " " << coords[1] << std::endl; 
-    std::cout << my_rank << " -----------------------> coords: " << coords[0] << " " << coords[1] << std::endl;
+    // std::cout << my_rank << " -----------------------> coords: " << coords[0] << " " << coords[1] << std::endl;
     MPI_Barrier(MPI_COMM_WORLD); // TODO: wywalić
 
     
@@ -401,15 +401,15 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
 
     
 
-    if (my_rank == 1) {
-        std::cout << "==================================================================================\n";
-        std::cout << "A AND B AFTER ALLGATHER" <<  my_rank << "\n";
-        A.print_matrix();
-        B.print_matrix();
-        std::cout << "==================================================================================\n";
+    // if (my_rank == 1) {
+    //     std::cout << "==================================================================================\n";
+    //     std::cout << "A AND B AFTER ALLGATHER" <<  my_rank << "\n";
+    //     A.print_matrix();
+    //     B.print_matrix();
+    //     std::cout << "==================================================================================\n";
 
-        std::cout << std::endl;
-    }
+    //     std::cout << std::endl;
+    // }
 
 
     MatrixChunk C(max_chunk_size);
@@ -421,14 +421,14 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     my_x_offset = B_x_real_range.first;
     my_y_offset = A_y_real_range.first;
 
-    if (my_rank == 1) {
-        std::cout << "-----------------------------------------------------------------------------------\n";
-        std::cout << "C AFTER MULTIPLICATION" << "\n";
-        std::cout << "RANK: " << my_rank << "\n"; 
-        std::cout << "offsets " << my_x_offset << " " << my_y_offset << "\n";
-        C.print_matrix();
-        std::cout << "-----------------------------------------------------------------------------------\n" << std::endl;
-    }
+    // if (my_rank == 1) {
+    //     std::cout << "-----------------------------------------------------------------------------------\n";
+    //     std::cout << "C AFTER MULTIPLICATION" << "\n";
+    //     std::cout << "RANK: " << my_rank << "\n"; 
+    //     std::cout << "offsets " << my_x_offset << " " << my_y_offset << "\n";
+    //     C.print_matrix();
+    //     std::cout << "-----------------------------------------------------------------------------------\n" << std::endl;
+    // }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -460,7 +460,6 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
                     int row_in_proc = row % C_y_chunk_size;
                     for (int p_col = 0; p_col < p_n; p_col++) {
                         int proc_num = p_col * p_m + p_row;
-                       // std::cout << "->>>>>>>>>>>>>>>>>>>>>> proc: " << proc_num << " " << p_row << " " << p_col << std::endl;
                         if (proc_num == 0) {
                             print_row(C.data + row_in_proc * C.size, C_x_chunk_size);
                         }
@@ -480,5 +479,23 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
             }
         }
     }
+    else {
+        int C_x_reduce_chunk_size = C_x_chunk_size / p_k;
 
+        int num_ge = 0;
+
+        for (int row = C_x_reduce_chunk_size * my_k_group; row < C_x_reduce_chunk_size * (my_k_group + 1); row++) {
+            for (int column = 0; column < C.size; column++) {
+                if (C.data[row * C.size + column] >= ge_value) {
+                    num_ge++;
+                }
+            }
+        }
+
+        int result;
+        MPI_Reduce(&num_ge, &result, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+        if (my_rank == 0)
+            std::cout << result << std::endl;
+    }
 }
