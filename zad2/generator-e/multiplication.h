@@ -6,4 +6,4 @@
 #include <sstream>
 #include <mpi.h>
 
-void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, int> p_counts, bool print_matrix, double ge_value);
+void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, int> p_counts, bool print_matrix, double ge_value, bool transpose);

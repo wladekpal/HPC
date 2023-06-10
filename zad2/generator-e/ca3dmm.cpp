@@ -16,9 +16,11 @@ std::tuple<int, int, int> solve_ps(int n, int m, int k, double l) { // TOOD: to 
     int min_score = 1000000, max_score = 0;
     std::tuple<int,int,int> solution;
 
+    int min_dim = std::min(n, std::min(m, k));
+
     for (int p_k = 1; p_k <= total; p_k++) {
-        for (int p_n = 1; p_n <= total; p_n++) {
-            for (int p_m = 1; p_m <= total; p_m++) {
+        for (int p_n = 1; p_n <= n; p_n++) {
+            for (int p_m = 1; p_m <= m; p_m++) {
                 double num = p_n * p_m * p_k;
                 int score = p_m * k * n + p_n * m * k + p_k * m * n;
                 if ((p_n % p_m == 0 || p_m % p_n == 0 ) && num >= l * total_d && num <= total_d) {
@@ -93,10 +95,21 @@ void process_arguments(int argc, char *argv[]) {
     }
 
 
-    auto solution = solve_ps(n, m, k, 0.8);
+    auto solution = solve_ps(n, m, k, 0.9);
+    int p_n = std::get<0>(solution);
+    int p_m = std::get<1>(solution);
+    int p_k = std::get<2>(solution);
+
+    bool transpose = p_n < p_m;
 
     for (int i =0; i < seeds.size(); i++) {
-        multiply(n, m, k, seeds[i].first, seeds[i].second, solution, print_matrix, ge_value);
+        if (transpose) {
+            solution = {p_m, p_n, p_k};
+            multiply(m, n, k, seeds[i].second, seeds[i].first, solution, print_matrix, ge_value, true);
+        }
+        else {
+            multiply(n, m, k, seeds[i].first, seeds[i].second, solution, print_matrix, ge_value, false);
+        }
     }
 }
 
