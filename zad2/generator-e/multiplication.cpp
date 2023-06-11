@@ -39,7 +39,7 @@ class MatrixChunk {
 
             for (int row = 0; row < size; row++) {
                 for (int column = 0; column < size; column++) {
-                    if (is_in_range(column + x_offset, row + y_offset, x_gen_range, y_gen_range)) {
+                    if (is_in_range(column + x_offset, row + y_offset, x_gen_range, y_gen_range) && is_in_range(column + x_offset, row + y_offset, x_range, y_range)) {
                         if (transpose)
                             this->data[row * size + column] = generate_double(seed, column + x_offset, row + y_offset);
                         else
@@ -164,9 +164,9 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     int my_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
-    if (my_rank == 0) {
-        std::cout << "Solution: " << p_n << " " << p_m << " " << p_k << std::endl;
-    }
+    // if (my_rank == 0) {
+    //     std::cout << "Solution: " << p_n << " " << p_m << " " << p_k << std::endl;
+    // }
 
     if (my_rank >= p_total) {
         return; //TODO: tutaj chyba nie return nie można tak robić bez zrobienia nowego comm worlda!!!!!
@@ -216,13 +216,16 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
         x_coord_in_cannon = x_coord_in_group % p_m;
         y_coord_in_cannon = y_coord_in_group;
 
-        int A_x_gen_chunk_size = divide_ceil(A_x_chunk_size, c);
-        int A_y_gen_chunk_szie = divide_ceil(A_y_chunk_size, );
+        int A_x_gen_chunk_size = A_x_chunk_size;//divide_ceil(A_x_chunk_size, 1);
+        int A_y_gen_chunk_size = divide_ceil(A_y_chunk_size, c);
 
-        A_x_gen_range = std::make_pair(x_coord_in_cannon * A_x_chunk_size + x_group_offset + my_cannon_group * A_x_gen_chunk_size, x_coord_in_cannon * A_x_chunk_size + x_group_offset + (my_cannon_group + 1) * A_x_gen_chunk_size);
+        // if (my_rank == 0)
+        //     std::cout << "A_GEN_CHUNK " << A_x_gen_chunk_size << " " << A_y_gen_chunk_size << std::endl;
+
+        A_x_gen_range = std::make_pair(x_group_offset + x_coord_in_cannon * A_x_gen_chunk_size, x_group_offset + (x_coord_in_cannon + 1) * A_x_gen_chunk_size);
+        A_y_gen_range = std::make_pair(y_coord_in_group * A_y_chunk_size + my_cannon_group * A_y_gen_chunk_size + y_group_offset, y_coord_in_group * A_y_chunk_size + (my_cannon_group + 1) * A_y_gen_chunk_size + y_group_offset);
         A_x_gen_range.second = std::min(A_x_gen_range.second, k);
-
-        A_y_gen_range = std::make_pair(y_coord_in_group * A_y_chunk_size + y_group_offset, (y_coord_in_group + 1) * A_y_chunk_size + y_group_offset);
+        A_y_gen_range.second = std::min(A_y_gen_range.second, m);
 
         A_x_real_range = std::make_pair(x_coord_in_cannon * A_x_chunk_size + x_group_offset, (x_coord_in_cannon + 1) * A_x_chunk_size + x_group_offset);
         A_y_real_range = std::make_pair(y_coord_in_group * A_y_chunk_size + y_group_offset, (y_coord_in_group + 1) * A_y_chunk_size + y_group_offset);
@@ -233,7 +236,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
         x_group_offset = 0;
         y_group_offset = my_k_group * (k / p_k);
 
-        B_x_chunk_size = n / p_n;
+        B_x_chunk_size = divide_ceil(n, p_n);
         B_y_chunk_size = A_x_chunk_size;
 
         B_x_gen_range = std::make_pair(x_coord_in_group * B_x_chunk_size + x_group_offset, (x_coord_in_group + 1) * B_x_chunk_size + x_group_offset);
@@ -242,11 +245,15 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
         B_x_real_range = B_x_gen_range;
         B_y_real_range = B_y_gen_range;
 
-        std::cout << "Proc: " << my_rank << "| k_group: " << my_k_group << "| my_id_in_k: " << my_id_in_group << "| cannon_group: " << my_cannon_group << "| my_id_in_cannon: " << my_id_in_cannon; 
-        std::cout << "| coords in cannon: (" << x_coord_in_cannon << "," << y_coord_in_cannon << ")";
-        std::cout << "| coords in group: (" << x_coord_in_group << "," << y_coord_in_group << ")";
-        std::cout << "| A range x: (" << A_x_gen_range.first << "," << A_x_gen_range.second << ") y:(" << A_y_gen_range.first << "," << A_y_gen_range.second << ") | B range x:(" << B_x_gen_range.first << "," << B_x_gen_range.second << ") y: (" << B_y_gen_range.first << "," << B_y_gen_range.second << ")";
-        std::cout << "| A_x_real_range: (" << A_x_real_range.first << "," << A_x_real_range.second << ")"<< std::endl;
+        B_x_real_range.second = std::min(B_x_real_range.second, n);
+        B_y_real_range.second = std::min(B_y_real_range.second, k);
+
+        // std::cout << "Proc: " << my_rank << "| k_group: " << my_k_group << "| my_id_in_k: " << my_id_in_group << "| cannon_group: " << my_cannon_group << "| my_id_in_cannon: " << my_id_in_cannon; 
+        // std::cout << "| coords in cannon: (" << x_coord_in_cannon << "," << y_coord_in_cannon << ")";
+        // std::cout << "| coords in group: (" << x_coord_in_group << "," << y_coord_in_group << ")";
+        // std::cout << "| A range x: (" << A_x_gen_range.first << "," << A_x_gen_range.second << ") y:(" << A_y_gen_range.first << "," << A_y_gen_range.second << ") | B range x:(" << B_x_real_range.first << "," << B_x_real_range.second << ") y: (" << B_y_real_range.first << "," << B_y_real_range.second << ")";
+        // std::cout << "| A_x_real_range: (" << A_x_real_range.first << "," << A_x_real_range.second << ") ";
+        // std::cout << "| A_y_real_range: (" << A_y_real_range.first << "," << A_y_real_range.second << ")" << std::endl;
     }
     else {
         assert(false);
@@ -283,7 +290,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     MatrixChunk B(B_x_gen_range, B_y_gen_range, B_x_real_range, B_y_real_range, seed_B, max_chunk_size, transpose);
 
 
-    // if (my_rank == 2) {
+    // if (my_rank == 7) {
     //     std::cout << "==================================================================================\n";
     //     std::cout << "A AND B before allgather" <<  my_rank << "\n";
     //     A.print_matrix();
@@ -298,9 +305,9 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     // }
 
     MPI_Comm redistribution_comm;
-    MPI_Comm_split(global_comm, A_x_real_range.first * A_y_chunk_size + A_y_real_range.first, 0, &redistribution_comm); // TODO: tutaj może na podstawie A_x_real_range trzeba to robić, i wtedy będzie dobrze ??
+    MPI_Comm_split(global_comm, A_x_real_range.first * m + A_y_real_range.first, 0, &redistribution_comm); // TODO: tutaj może na podstawie A_x_real_range trzeba to robić, i wtedy będzie dobrze ??
 
-    //std::cout << "REDISTRIBUTION COMM:  " << my_rank << " " << A_x_real_range.first * A_y_chunk_size + A_y_real_range.first << std::endl;
+    // std::cout << "REDISTRIBUTION COMM:  " << my_rank << " " << A_x_real_range.first * A_y_chunk_size + A_y_real_range.first << " "<< A_x_real_range.first << " " << A_y_real_range.first << " " << A_y_chunk_size << std::endl;
 
     // TODO: A trzeba zamalocować lepiej, tak, żeby to od razu allgatherem się tam zapisało albo mpi_allreduce
     double* matrix_recv = (double*) malloc(sizeof(double) * max_chunk_size * max_chunk_size * c);
@@ -324,7 +331,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
 
     
 
-    // if (my_rank == 2) {
+    // if (my_rank == 7) {
     //     std::cout << "==================================================================================\n";
     //     std::cout << "A AND B AFTER ALLGATHER" <<  my_rank << "\n";
     //     A.print_matrix();
@@ -363,7 +370,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
         C.data = reduced_C;
     }
 
-    // if (my_rank == 3) {
+    // if (my_rank == 7) {
     //     std::cout << "-----------------------------------------------------------------------------------\n";
     //     std::cout << "C AFTER REDUCTION" << "\n";
     //     std::cout << "RANK: " << my_rank << "\n"; 
@@ -373,8 +380,8 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     // }
 
     int C_x_chunk_size, C_y_chunk_size;
-    C_x_chunk_size = n / p_n;
-    C_y_chunk_size = m / p_m;
+    C_x_chunk_size = divide_ceil(n, p_n);
+    C_y_chunk_size = divide_ceil(m, p_m);
     C_x_range = std::make_pair(x_coord_in_group * C_x_chunk_size, (x_coord_in_group + 1) * C_x_chunk_size);
     C_y_range = std::make_pair(y_coord_in_group * C_y_chunk_size, (y_coord_in_group + 1) * C_y_chunk_size);
 
@@ -385,7 +392,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
             if (transpose) {
                 double* recv_col = (double*) malloc(C_y_chunk_size * sizeof(double));
                 MPI_Status s;
-                std::cout << n << " " << m << std::endl;
+                std::cout << n << " " << m << std::endl; //TODO: C_x_chunk size ograniczyć przy prinotwaniu
                 for (int p_col = 0; p_col < p_n; p_col++) {
                     for (int col = p_col * C_x_chunk_size; col < (p_col + 1) * C_x_chunk_size; col++) {
                         int col_in_proc = col % C_x_chunk_size;
@@ -410,19 +417,23 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
                 double* recv_row = (double*) malloc(C_x_chunk_size * sizeof(double));
                 MPI_Status s;
                 std::cout << m << " " << n << std::endl;
-                std::cout << C_x_chunk_size << " " << C_y_chunk_size << std::endl;
+                //std::cout << C_x_chunk_size << " " << C_y_chunk_size << std::endl;
                 for (int p_row = 0; p_row < p_m; p_row++) {
                     for (int row = p_row * C_y_chunk_size; row < (p_row + 1) * C_y_chunk_size; row++) {
                         int row_in_proc = row % C_y_chunk_size;
+                        int printed_in_row = 0;
                         for (int p_col = 0; p_col < p_n; p_col++) {
                             int proc_num = p_col * p_m + p_row;
+                            int to_print = std::min(printed_in_row + C_x_chunk_size, n) - printed_in_row;
+                    
                             if (proc_num == 0) {
-                                print_row(C.data + row_in_proc * C.size, C_x_chunk_size);
+                                print_row(C.data + row_in_proc * C.size, to_print);
                             }
                             else {
                                 MPI_Recv(recv_row, C_x_chunk_size, MPI_DOUBLE, proc_num, 0, global_comm, &s);
-                                print_row(recv_row, C_x_chunk_size);
+                                print_row(recv_row, to_print);
                             }
+                            printed_in_row += C_x_chunk_size;
                         }
                         std::cout << std::endl;
                     }
@@ -468,7 +479,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
             }
         }
 
-        std::cout << "GE: " << my_rank << " " << num_ge << std::endl;
+        // std::cout << "GE: " << my_rank << " " << num_ge << std::endl;
 
 
         int result;
