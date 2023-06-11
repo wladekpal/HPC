@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <cblas.h>
+#include <tuple>
 #include <mpi.h>
 #include <cassert>
 #include "densematgen.h"

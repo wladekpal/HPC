@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <vector>
 #include <string>
+#include <tuple>
 #include <sstream>
 #include "multiplication.h"
 #include <mpi.h>

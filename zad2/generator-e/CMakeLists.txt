@@ -8,16 +8,6 @@ SET(CMAKE_CXX_FLAGS "-std=c++14 -g3 -Wall -O0")
 LINK_LIBRARIES("blas")
 
 
-add_executable(generator
-        densematgen.cpp
-        densematgen.h
-        generator_main.cpp)
-
-add_executable(generator_all
-        densematgen.cpp
-        densematgen.h
-        generator_all.cpp)
-
 add_executable(ca3dmm
         ca3dmm.cpp
         densematgen.cpp
