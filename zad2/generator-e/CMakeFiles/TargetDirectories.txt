@@ -1,5 +1,0 @@
-/home/wladekp/HPC/zad2/generator-e/CMakeFiles/generator.dir
-/home/wladekp/HPC/zad2/generator-e/CMakeFiles/generator_all.dir
-/home/wladekp/HPC/zad2/generator-e/CMakeFiles/ca3dmm.dir
-/home/wladekp/HPC/zad2/generator-e/CMakeFiles/edit_cache.dir
-/home/wladekp/HPC/zad2/generator-e/CMakeFiles/rebuild_cache.dir

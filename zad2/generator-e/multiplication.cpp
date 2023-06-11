@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <cblas.h>
 #include <mpi.h>
 #include <cassert>
 #include "densematgen.h"
@@ -22,28 +23,29 @@ bool is_in_range(int x, int y, std::pair<int, int> x_range, std::pair<int,int> y
 // Chunk of matrix, that is padded, so that it is square
 class MatrixChunk {
     public:
-        int size;
+        int x_size, y_size;
         double* data;
 
-        MatrixChunk (int size) : size(size) {
-            this->data = (double*) calloc(size * size, sizeof(double*));
+        MatrixChunk (int x_size, int y_size) : x_size(x_size), y_size(y_size) {
+            this->data = (double*) calloc(x_size * y_size, sizeof(double*));
         }
 
-        MatrixChunk (std::pair<int,int> x_gen_range, std::pair<int, int> y_gen_range, std::pair<int,int> x_range, std::pair<int,int> y_range, int seed, int size, bool transpose) : 
-                    size(size) {
+        MatrixChunk (std::pair<int,int> x_gen_range, std::pair<int, int> y_gen_range, std::pair<int,int> x_range, std::pair<int,int> y_range, int seed, int x_size, int y_size, bool transpose) : 
+                    x_size(x_size),
+                    y_size(y_size) {
             
-            this->data = (double*) calloc(size * size, sizeof(double*));
+            this->data = (double*) calloc(x_size * y_size, sizeof(double*));
 
             int x_offset = x_range.first;
             int y_offset = y_range.first;
 
-            for (int row = 0; row < size; row++) {
-                for (int column = 0; column < size; column++) {
+            for (int row = 0; row < y_size; row++) {
+                for (int column = 0; column < x_size; column++) {
                     if (is_in_range(column + x_offset, row + y_offset, x_gen_range, y_gen_range) && is_in_range(column + x_offset, row + y_offset, x_range, y_range)) {
                         if (transpose)
-                            this->data[row * size + column] = generate_double(seed, column + x_offset, row + y_offset);
+                            this->data[row * x_size + column] = generate_double(seed, column + x_offset, row + y_offset);
                         else
-                            this->data[row * size + column] = generate_double(seed, row + y_offset, column + x_offset);
+                            this->data[row * x_size + column] = generate_double(seed, row + y_offset, column + x_offset);
                     }
                 }
             }
@@ -60,14 +62,14 @@ class MatrixChunk {
         }
 
         ~MatrixChunk() {
-            //free((void*)this->data);
+            free((void*)this->data);
         }
 
         void print_matrix() {
-            std::cout << this->size << "\n";
-            for (int i = 0 ; i < size; i++) {
-                for (int j = 0 ; j < size; j++) {
-                    std::cout << this->data[i * size + j] << " ";
+            std::cout << this->y_size << " " << this->x_size << "\n";
+            for (int i = 0 ; i < y_size; i++) {
+                for (int j = 0 ; j < x_size; j++) {
+                    std::cout << this->data[i * x_size + j] << " ";
                 }
                 std::cout << "\n";
             }
@@ -89,14 +91,14 @@ void print_col(double* data, int x_size, int y_size) {
 
 MPI_Request send_async_matrix(MPI_Comm comm, int dest, MatrixChunk &M) {
     MPI_Request result;
-    MPI_Isend(M.data, M.size * M.size, MPI_DOUBLE, dest, 0, comm, &result);
+    MPI_Isend(M.data, M.x_size * M.y_size, MPI_DOUBLE, dest, 0, comm, &result);
 
     return result;
 }
 
 MPI_Request recv_async_matrix(MPI_Comm comm, int src, MatrixChunk &M) {
     MPI_Request result;
-    MPI_Irecv(M.data, M.size * M.size, MPI_DOUBLE, src, 0, comm, &result);
+    MPI_Irecv(M.data, M.x_size * M.y_size, MPI_DOUBLE, src, 0, comm, &result);
 
     return result;
 }
@@ -104,14 +106,14 @@ MPI_Request recv_async_matrix(MPI_Comm comm, int src, MatrixChunk &M) {
 
 //Performs C = C + A * B
 void multiply_add(MatrixChunk &A, MatrixChunk &B, MatrixChunk &C) {
-    int n = A.size;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            for(int k = 0; k < n; k++) {
-                C.data[i * n + j] += A.data[i * n + k] * B.data[k * n + j];
+    for (int i = 0; i < A.y_size; i++) {
+        for (int j = 0; j < B.x_size; j++) {
+            for(int k = 0; k < A.x_size; k++) {
+                C.data[i * B.x_size + j] += A.data[i * A.x_size + k] * B.data[k * B.x_size + j];
             }
         }
     }
+    //cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, A.y_size, B.x_size, A.x_size, 1.0, A.data, A.x_size, B.data, B.x_size, 1.0, C.data, B.x_size);
 }
 
 
@@ -134,18 +136,36 @@ void cannon(int grid_size, MPI_Comm comm, MatrixChunk &A, MatrixChunk &B, Matrix
 
 
     if (skew_horizontal > 0) {
-        MPI_Sendrecv_replace(A.data, A.size * A.size, MPI_DOUBLE, skew_left, 0, skew_right, 0, comm, &s);
+        MPI_Sendrecv_replace(A.data, A.x_size * A.y_size, MPI_DOUBLE, skew_left, 0, skew_right, 0, comm, &s);
     }
 
     if (skew_vertical > 0) {
-        MPI_Sendrecv_replace(B.data, B.size * B.size, MPI_DOUBLE, skew_up, 0, skew_down, 0, comm, &s);
+        MPI_Sendrecv_replace(B.data, B.x_size * B.y_size, MPI_DOUBLE, skew_up, 0, skew_down, 0, comm, &s);
     }
 
     for (int i = 0 ; i < grid_size; i++) {
+        send_horizontal = send_async_matrix(comm, left, A);
+        send_vertical = send_async_matrix(comm, up, B);
+
+        MatrixChunk new_A(A.x_size, A.y_size);
+        MatrixChunk new_B(B.x_size, B.y_size);
+
+        recv_horizontal = recv_async_matrix(comm, right, new_A);
+        recv_vertical = recv_async_matrix(comm, down, new_B);
+
         multiply_add(A, B, C);
 
-        MPI_Sendrecv_replace(A.data, A.size * A.size, MPI_DOUBLE, left, 0, right, 0, comm, &s);
-        MPI_Sendrecv_replace(B.data, B.size * B.size, MPI_DOUBLE, up, 0, down, 0, comm, &s);
+        MPI_Wait(&send_horizontal, &s);
+        MPI_Wait(&send_vertical, &s);
+        MPI_Wait(&recv_horizontal, &s);
+        MPI_Wait(&recv_vertical, &s);
+
+        std::swap(A.data, new_A.data);
+        std::swap(B.data, new_B.data);
+
+                    // multiply_add(A, B, C);
+                    // MPI_Sendrecv_replace(A.data, A.x_size * A.y_size, MPI_DOUBLE, left, 0, right, 0, comm, &s);
+                    // MPI_Sendrecv_replace(B.data, B.x_size * B.y_size, MPI_DOUBLE, up, 0, down, 0, comm, &s);
     }
 }
 
@@ -169,7 +189,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     // }
 
     if (my_rank >= p_total) {
-        return; //TODO: tutaj chyba nie return nie można tak robić bez zrobienia nowego comm worlda!!!!!
+        return;
     }
     
     MPI_Comm global_comm;
@@ -181,12 +201,9 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     int my_id_in_group = my_rank % num_proc_in_k_group;
 
     int c, my_id_in_cannon, cannon_size, x_coord_in_group, y_coord_in_group, x_coord_in_cannon, y_coord_in_cannon;
-    int B_x_chunk_coord_in_group, B_y_chunk_coord_in_group, B_x_chunk_coord_in_cannon, B_y_chunk_coord_in_cannon;
-    int A_x_chunk_coord_in_group, A_y_chunk_coord_in_group, A_x_chunk_coord_in_cannon, A_y_chunk_coord_in_cannon;
     int A_x_chunk_size, A_y_chunk_size, B_x_chunk_size, B_y_chunk_size;
-    int x_coord_in_k_group, y_coord_in_k_group, x_group_offset, y_group_offset;
+    int x_group_offset, y_group_offset;
     int my_cannon_group;
-    int my_x_offset, my_y_offset;
 
 
     std::pair<int,int> A_x_gen_range, A_y_gen_range, B_x_gen_range, B_y_gen_range; // Range of elements that have to be generated by the process
@@ -286,11 +303,11 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     B_x_real_range.second -= 1;
     B_y_real_range.second -= 1;
 
-    MatrixChunk A(A_x_gen_range, A_y_gen_range, A_x_real_range, A_y_real_range, seed_A, max_chunk_size, transpose);
-    MatrixChunk B(B_x_gen_range, B_y_gen_range, B_x_real_range, B_y_real_range, seed_B, max_chunk_size, transpose);
+    MatrixChunk A(A_x_gen_range, A_y_gen_range, A_x_real_range, A_y_real_range, seed_A, A_x_chunk_size, A_y_chunk_size, transpose);
+    MatrixChunk B(B_x_gen_range, B_y_gen_range, B_x_real_range, B_y_real_range, seed_B, B_x_chunk_size, B_y_chunk_size, transpose);
 
 
-    // if (my_rank == 7) {
+    // if (my_rank == 0) {
     //     std::cout << "==================================================================================\n";
     //     std::cout << "A AND B before allgather" <<  my_rank << "\n";
     //     A.print_matrix();
@@ -304,26 +321,16 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     //     A.print_matrix();
     // }
 
-    MPI_Comm redistribution_comm;
-    MPI_Comm_split(global_comm, A_x_real_range.first * m + A_y_real_range.first, 0, &redistribution_comm); // TODO: tutaj może na podstawie A_x_real_range trzeba to robić, i wtedy będzie dobrze ??
-
     // std::cout << "REDISTRIBUTION COMM:  " << my_rank << " " << A_x_real_range.first * A_y_chunk_size + A_y_real_range.first << " "<< A_x_real_range.first << " " << A_y_real_range.first << " " << A_y_chunk_size << std::endl;
-
-    // TODO: A trzeba zamalocować lepiej, tak, żeby to od razu allgatherem się tam zapisało albo mpi_allreduce
-    double* matrix_recv = (double*) malloc(sizeof(double) * max_chunk_size * max_chunk_size * c);
+    
 
     if (c > 1) {
-        // MPI_Allgather(matrix_send, max_chunk_size * max_chunk_size, MPI_DOUBLE, matrix_recv, max_chunk_size * max_chunk_size, MPI_DOUBLE, redistribution_comm);
+        MPI_Comm redistribution_comm;
+        MPI_Comm_split(global_comm, A_x_real_range.first * m + A_y_real_range.first, 0, &redistribution_comm);
 
-        // for (int i = 0; i < max_chunk_size * max_chunk_size; i++) {
-        //     double sum = 0;
-        //     for (int j = 0; j < c; j++) { // TODO: tutaj nie p_n
-        //         sum += matrix_recv[max_chunk_size * max_chunk_size * j + i];
-        //        // std::cout << "ADDRESS" << max_chunk_size * max_chunk_size * j + i << "-->>>>> " << matrix_recv[max_chunk_size * max_chunk_size * j + i] << std::endl;
-        //     }
-        //     A.data[i] = sum;
-        // }
+        double* matrix_recv = (double*) malloc(sizeof(double) * max_chunk_size * max_chunk_size * c);
         MPI_Allreduce(A.data, matrix_recv, max_chunk_size * max_chunk_size, MPI_DOUBLE, MPI_SUM, redistribution_comm);
+        free(A.data);
         A.data = matrix_recv;
     }
 
@@ -342,14 +349,11 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     // }
 
 
-    MatrixChunk C(max_chunk_size);
+    MatrixChunk C(B_x_chunk_size, A_y_chunk_size);
 
     //TODO: redistribution
     cannon(p_m, cannon_comm_grid, A, B, C, coords[0], coords[1]);
 
-
-    my_x_offset = B_x_real_range.first;
-    my_y_offset = A_y_real_range.first;
 
     // if (my_rank == 3) {
     //     std::cout << "-----------------------------------------------------------------------------------\n";
@@ -362,11 +366,12 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
 
     //TODO: zebranie wszystkiego do 0 k-groupy
     if (p_k > 1){
-        double* reduced_C = (double*) malloc(C.size * C.size * sizeof(double));
         MPI_Comm reduction_comm;
         MPI_Comm_split(global_comm, y_coord_in_group * (m / p_m) + x_coord_in_group, 0, &reduction_comm);
-        MPI_Allreduce(C.data, reduced_C, C.size * C.size, MPI_DOUBLE, MPI_SUM, reduction_comm);
-        //free(C.data);
+
+        double* reduced_C = (double*) malloc(C.x_size * C.y_size * sizeof(double));
+        MPI_Allreduce(C.data, reduced_C, C.x_size * C.y_size, MPI_DOUBLE, MPI_SUM, reduction_comm);
+        free(C.data);
         C.data = reduced_C;
     }
 
@@ -396,15 +401,19 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
                 for (int p_col = 0; p_col < p_n; p_col++) {
                     for (int col = p_col * C_x_chunk_size; col < (p_col + 1) * C_x_chunk_size; col++) {
                         int col_in_proc = col % C_x_chunk_size;
+                        int printed_in_row = 0;
                         for (int p_row = 0; p_row < p_m; p_row++) {
                             int proc_num = p_col * p_m + p_row;
+                            int to_print;
                             if (proc_num == 0) {
                                 print_col(C.data + col_in_proc, C_x_chunk_size, C_y_chunk_size);
                             }
                             else {
+                                to_print = std::min(printed_in_row + C_y_chunk_size, m) - printed_in_row;
                                 MPI_Recv(recv_col, C_y_chunk_size, MPI_DOUBLE, proc_num, 0, global_comm, &s);
-                                print_row(recv_col, C_y_chunk_size);
+                                print_row(recv_col, to_print);
                             }
+                            printed_in_row += C_y_chunk_size;
                         }
                         std::cout << std::endl;
                     }   
@@ -427,7 +436,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
                             int to_print = std::min(printed_in_row + C_x_chunk_size, n) - printed_in_row;
                     
                             if (proc_num == 0) {
-                                print_row(C.data + row_in_proc * C.size, to_print);
+                                print_row(C.data + row_in_proc * C.x_size, to_print);
                             }
                             else {
                                 MPI_Recv(recv_row, C_x_chunk_size, MPI_DOUBLE, proc_num, 0, global_comm, &s);
@@ -464,15 +473,13 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
         }
     }
     else {
-        int C_x_reduce_chunk_size = divide_ceil(C_x_chunk_size, p_k);
-
         int num_ge = 0;
 
         if (my_k_group == 0){
 
-            for (int row = 0; row < C.size; row++) {
-                for (int column = 0; column < C.size; column++) {
-                    if (C.data[row * C.size + column] >= ge_value) {
+            for (int row = 0; row < C.y_size; row++) {
+                for (int column = 0; column < C.x_size; column++) {
+                    if (C.data[row * C.x_size + column] >= ge_value) {
                         num_ge++;
                     }
                 }

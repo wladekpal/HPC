@@ -3,7 +3,8 @@ project (MIMUW-matgen)
 
 SET(CMAKE_CXX_COMPILER mpicxx)
 SET(CMAKE_CXX_STANDARD 14)
-set (CMAKE_CXX_FLAGS "-std=c++14  -g3 -Wall -O0")
+SET(CMAKE_CXX_FLAGS "-std=c++14 -g3 -Wall -O0 -lblas")
+
 
 add_executable(generator
         densematgen.cpp
@@ -21,3 +22,6 @@ add_executable(ca3dmm
         densematgen.h
         multiplication.h
         multiplication.cpp)
+
+# target_compile_options(ca3dmm ${BLAS_LINKER_FLAGS})
+# target_link_library(ca3dmm ${BLAS_LIBRARIES})
