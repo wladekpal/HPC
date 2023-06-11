@@ -3,7 +3,9 @@ project (MIMUW-matgen)
 
 SET(CMAKE_CXX_COMPILER mpicxx)
 SET(CMAKE_CXX_STANDARD 14)
-SET(CMAKE_CXX_FLAGS "-std=c++14 -g3 -Wall -O0 -lblas")
+SET(CMAKE_CXX_FLAGS "-std=c++14 -g3 -Wall -O0")
+
+LINK_LIBRARIES("blas")
 
 
 add_executable(generator

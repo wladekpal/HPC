@@ -106,14 +106,14 @@ MPI_Request recv_async_matrix(MPI_Comm comm, int src, MatrixChunk &M) {
 
 //Performs C = C + A * B
 void multiply_add(MatrixChunk &A, MatrixChunk &B, MatrixChunk &C) {
-    for (int i = 0; i < A.y_size; i++) {
-        for (int j = 0; j < B.x_size; j++) {
-            for(int k = 0; k < A.x_size; k++) {
-                C.data[i * B.x_size + j] += A.data[i * A.x_size + k] * B.data[k * B.x_size + j];
-            }
-        }
-    }
-    //cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, A.y_size, B.x_size, A.x_size, 1.0, A.data, A.x_size, B.data, B.x_size, 1.0, C.data, B.x_size);
+    // for (int i = 0; i < A.y_size; i++) {
+    //     for (int j = 0; j < B.x_size; j++) {
+    //         for(int k = 0; k < A.x_size; k++) {
+    //             C.data[i * B.x_size + j] += A.data[i * A.x_size + k] * B.data[k * B.x_size + j];
+    //         }
+    //     }
+    // }
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, A.y_size, B.x_size, A.x_size, 1.0, A.data, A.x_size, B.data, B.x_size, 1.0, C.data, B.x_size);
 }
 
 
