@@ -14,6 +14,3 @@ add_executable(ca3dmm
         densematgen.h
         multiplication.h
         multiplication.cpp)
-
-# target_compile_options(ca3dmm ${BLAS_LINKER_FLAGS})
-# target_link_library(ca3dmm ${BLAS_LIBRARIES})

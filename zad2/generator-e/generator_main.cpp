@@ -13,7 +13,7 @@
 
 
 int main() {
-    const int seed = 42;
+    const int seed = 2;
     const int size = 10;
     for (int r = 0; r < size; r++) {
         for (int c = 0; c < size; c++) {

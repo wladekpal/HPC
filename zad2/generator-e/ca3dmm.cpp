@@ -8,7 +8,7 @@
 #include "multiplication.h"
 #include <mpi.h>
 
-std::tuple<int, int, int> solve_ps(int n, int m, int k, double l) { // TOOD: to nieoptymalne
+std::tuple<int, int, int> solve_ps(int n, int m, int k, double l) {
     int total;
     MPI_Comm_size(MPI_COMM_WORLD, &total);
 
@@ -17,7 +17,6 @@ std::tuple<int, int, int> solve_ps(int n, int m, int k, double l) { // TOOD: to 
     int min_score = 1000000, max_score = 0;
     std::tuple<int,int,int> solution;
 
-    int min_dim = std::min(n, std::min(m, k));
 
     for (int p_k = 1; p_k <= total; p_k++) {
         for (int p_n = 1; p_n <= n; p_n++) {
@@ -62,7 +61,7 @@ void process_arguments(int argc, char *argv[]) {
             std::string first_str, second_str;
             bool is_first = true;
 
-            for (int j = 0; j < seeds_string.size(); j++) {
+            for (unsigned long int j = 0; j < seeds_string.size(); j++) {
                 if (seeds_string[j] == ',') {
                     if (!is_first) {
                         seeds.push_back(std::make_pair(std::stoi(first_str), std::stoi(second_str)));
@@ -103,7 +102,7 @@ void process_arguments(int argc, char *argv[]) {
 
     bool transpose = p_n < p_m;
 
-    for (int i =0; i < seeds.size(); i++) {
+    for (unsigned long int i = 0; i < seeds.size(); i++) {
         if (transpose) {
             solution = {p_m, p_n, p_k};
             multiply(m, n, k, seeds[i].second, seeds[i].first, solution, print_matrix, ge_value, true);
@@ -119,18 +118,9 @@ void process_arguments(int argc, char *argv[]) {
 
 
 int main(int argc, char *argv[]) {
-    int n, m, k, p_n, p_m, p_k;
-
-    n = std::stoi(argv[1]);
-    m = std::stoi(argv[2]);
-    k = std::stoi(argv[3]);
-
-
-
     MPI_Init(&argc,&argv);
     process_arguments(argc, argv);
     MPI_Finalize();
-
     return 0;
 }
 
