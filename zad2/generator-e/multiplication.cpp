@@ -168,6 +168,7 @@ void multiply(int n, int m, int k, int seed_A, int seed_B, std::tuple<int, int, 
     }
 
 
+    // Constants used to determine location of the process in the grid
     int c = p_n / p_m;
     int num_proc_in_k_group = p_n * p_m;
     int my_k_group = my_rank / num_proc_in_k_group;
